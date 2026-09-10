@@ -7,3 +7,6 @@ osmnx
 networkx
 geopy
 pulp
+scikit-learn
+rich
+pytest
