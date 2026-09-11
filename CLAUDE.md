@@ -43,6 +43,26 @@ z počátku scaffoldu chybělo `scikit-learn` (vyžaduje `nearest_nodes` na
 nezprojektovaném grafu). Doplněno, spolu s `rich` (barevný/tabulkový výstup
 v testech) a `pytest`.
 
+## Branch strategie a deploy (od 2026-09-11)
+
+- `main` – deploy/produkční branch. Nasazuje se z ní na Streamlit Cloud.
+  Obsahuje jen funkční, odzkoušené části. Stránky nedokončených solverů
+  (`pages/2_TSP.py`, `pages/3_SPP.py`, `pages/4_CPP.py`) v ní záměrně
+  nejsou, dokud nejsou hotové – `pages/1_Matice_vzdalenosti.py` v `main`
+  zůstává.
+- `dev` – pracovní branch, kde vzniká veškerý rozpracovaný kód (včetně
+  solver stránek). Běžná práce probíhá zde.
+- Postup, jak dostat hotovou věc z `dev` do `main`: **necouvat celý branch
+  merge** (`git merge dev` by vrátil zpět i nedokončené solver stránky,
+  protože v `dev` stále existují). Místo toho přenášet jednotlivé hotové
+  soubory:
+  ```
+  git checkout main
+  git checkout dev -- pages/2_TSP.py
+  git commit -m "..."
+  git push
+  ```
+
 ## Cíl aplikace
 
 Streamlit aplikace, která:
