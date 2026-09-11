@@ -16,9 +16,9 @@ st.markdown(
     a jejich využití ve vybraných úlohách operačního výzkumu:
 
     - **Matrix gen** - generátor matic vzdáleností
-    - **TSP** – problém obchodního cestujícího
-    - **SPP** – problém nejkratší cesty
-    - **CPP** – problém čínského listonoše
+    - **TSP** – problém obchodního cestujícího _TBD_
+    - **SPP** – problém nejkratší cesty _TBD_
+    - **CPP** – problém čínského listonoše _TBD_
     """
 )
 
