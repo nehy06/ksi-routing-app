@@ -37,11 +37,17 @@ st.subheader('Zadání parametrů matice')
 with st.form("matrix_form", border=False):
 
     # oblast mapy, která se má stáhnout
-    st.info(
+    st.markdown(
         """
         Je potřeba zadat oblast mapy, která se má stáhnout pro vygenerování matice.
 
         _Např. pokud budete zadávat souřadnice z Prahy, zadejte "Praha", lze i konkrétní pražšké části, jako "Praha 6"._
+        """
+    )
+
+    st.warning(
+        """
+        **POZOR:** čím větší oblast bude, tím déle se bude oblast stahovat. Silniční mapa České republiky zabere řádově a žněkolik desítek minut.
         """
     )
     place = st.text_input(
