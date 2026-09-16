@@ -72,6 +72,42 @@ def get_or_download_graph(place: str, network_type: str = "drive",
     return graph
 
 
+def get_or_download_graph_bbox(north: float, south: float, east: float, west: float,
+                                network_type: str = "drive",
+                                cache_dir: str = "data/cache/graphs") -> nx.MultiDiGraph:
+    """Vrátí silniční síť pro daný bbox — z lokální cache, pokud tam už je,
+    jinak ji stáhne z OSM a uloží pro příští použití.
+
+    Args:
+        north, south, east, west: Souřadnice ohraničujícího obdélníku,
+            stejně jako u download_road_network_bbox.
+        network_type: Typ sítě ('drive', 'walk', 'bike', ...).
+        cache_dir: Složka, do které se ukládají grafy stažené touto funkcí.
+
+    Returns:
+        Silniční síť jako networkx.MultiDiGraph.
+    """
+    # souřadnice se před sestavením klíče zaokrouhlí, aby mírně odlišné
+    # zadání (setiny stupně) neplýtvalo cache novým souborem pro prakticky
+    # stejnou oblast
+    cache_key = f"{round(north, 4)}_{round(south, 4)}_{round(east, 4)}_{round(west, 4)}_{network_type}"
+    path = _cache_path(cache_key, cache_dir)
+
+    if os.path.exists(path):
+        # graf už je uložený lokálně, stažení z OSM se přeskočí
+        graph = ox.load_graphml(path)
+        return graph
+
+    # graf zatím v cache není, stáhne se z OSM
+    graph = download_road_network_bbox(north, south, east, west, network_type=network_type)
+
+    # ujistí se, že cílová složka existuje (i kdyby šlo o víceúrovňovou cestu)
+    os.makedirs(cache_dir, exist_ok=True)
+    ox.save_graphml(graph, path)
+
+    return graph
+
+
 # ----- Definice funkce pro nastavení typu ohodnocení hran -----
 def prepare_graph_for_weight(graph, mode: str):
     """
