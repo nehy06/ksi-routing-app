@@ -9,3 +9,4 @@ data/cache/
 cache/
 *.log
 .DS_Store
+CLAUDE.md
