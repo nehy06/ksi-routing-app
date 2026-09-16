@@ -54,7 +54,7 @@ with st.form("matrix_form", border=False):
         """
         Aby generování matice fungovalo, je potřeba zadat souřadnice ve formátu: zeměpisná šířka, zeměpisná délka; vždy jeden bod na řádek.
 
-        _Tip: U bodů v ČR je šířka vždy menší číslo (~50) než délka (~14)._
+        _Tip: U bodů v ČR je šířka vždy ~50 a délka ~14._
         """
     )
     coordinates_input = st.text_area(

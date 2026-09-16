@@ -98,14 +98,14 @@ o ruční ověřovací skripty s `print()`, ne o formální testy s `assert`.
 
 ## Klíčové knihovny a jejich role
 
-| Knihovna | K čemu slouží zde |
-|---|---|
-| `osmnx` | stažení silniční sítě z OpenStreetMap jako graf (`networkx`) |
-| `networkx` | práce s grafem, nejkratší cesty (Dijkstra), Eulerovský okruh pro CPP |
-| `geopy` | geokódování adres na souřadnice (lat/lon), pokud se nezadávají body přímo na mapě |
-| `folium` + `streamlit-folium` | interaktivní mapa – zadávání bodů kliknutím, zobrazení trasy |
-| `pulp` | LP/ILP formulace pro TSP (a případně jiné modely řešitelné jako LP) |
-| `pandas` / `numpy` | práce s maticí vzdáleností jako s tabulkou/polem |
+| Knihovna                      | K čemu slouží zde                                                                 |
+| -------------------------------| -----------------------------------------------------------------------------------|
+| `osmnx`                       | stažení silniční sítě z OpenStreetMap jako graf (`networkx`)                      |
+| `networkx`                    | práce s grafem, nejkratší cesty (Dijkstra), Eulerovský okruh pro CPP              |
+| `geopy`                       | geokódování adres na souřadnice (lat/lon), pokud se nezadávají body přímo na mapě |
+| `folium` + `streamlit-folium` | interaktivní mapa – zadávání bodů kliknutím, zobrazení trasy                      |
+| `pulp`                        | LP/ILP formulace pro TSP (a případně jiné modely řešitelné jako LP)               |
+| `pandas` / `numpy`            | práce s maticí vzdáleností jako s tabulkou/polem                                  |
 
 ## Doporučené pořadí implementace
 

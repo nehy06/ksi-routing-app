@@ -3,7 +3,7 @@ import streamlit as st
 def render_header():
     """Zobrazí hlavičku appky – logo fakulty a název aplikace."""
     st.image("assets/CZU_PEF_barva_RGB.png", width=250)   
-    st.title("KSI PEF Routing app")
+    st.title("ξ PEF Routing app")
 
 
 def render_steps_sidebar():
