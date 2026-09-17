@@ -24,7 +24,7 @@ st.header('Matrix GENERATOR')
 
 st.markdown(
     """
-    Generování matic vzdáleností pro různé "Transportation problems"
+    Generování matic vzdáleností pro TSP a příbuzné problémy
 
     ---
 
@@ -38,6 +38,11 @@ st.subheader('Zadání parametrů matice')
 # Přepínač typu oblasti (název vs. bbox) je záměrně MIMO formulář.
 # Widgety uvnitř st.form() nevyvolají okamžitý rerun aplikace při změně -
 # UI by se přepnulo až po odeslání formuláře. Mimo formulář se přepne hned.
+st.markdown(
+    """
+    #### Určení mapové oblasti
+    """
+)
 place_type = st.segmented_control(
     'Typ určení oblasti mapového podkladu:',
     options=['Název oblasti', 'Čtverec vytyčený souřadnicemi'],
@@ -50,30 +55,42 @@ with st.form("matrix_form", border=False):
     st.markdown(
         """
         Je potřeba zadat oblast mapy, která se má stáhnout pro vygenerování matice.
-
-        _Např. pokud budete zadávat souřadnice z Prahy, zadejte "Praha", lze i konkrétní pražšké části, jako "Praha 6"._
         """
     )
 
     st.warning(
         """
-        **POZOR:** čím větší oblast bude, tím déle se bude oblast stahovat. Silniční mapa České republiky zabere řádově a žněkolik desítek minut.
+        **POZOR:** čím větší oblast bude, tím déle se bude oblast stahovat. Silniční mapa České republiky zabere řádově až několik desítek minut.
+
+        Stažené mapové podklady se ukládají do mezipaměti přímo na serveru appky – opakované zadání stejné oblasti (i od jiného uživatele) proběhne rychleji. Mezipaměť není vázaná na váš prohlížeč ani relaci; při dlouhodobé neaktivitě appky (Streamlit Cloud) se ale může vyprázdnit a stahování proběhne znovu.
         """
     )
+
 
     # podle zvoleného place_type (viz výše, mimo formulář) se zobrazí buď
     # textové pole pro název místa, nebo 4 pole pro souřadnice bbox
     if place_type == 'Název oblasti':
+
+        # zadávání mapy pomocí názvu oblasti
+        st.markdown(
+            """
+            _Např. pokud budete zadávat souřadnice z Prahy, zadejte "Praha", lze i konkrétní pražšké části, jako "Praha 6"._
+            """
+        )
         place = st.text_input(
             label="Oblast mapy pro generování",
             value="Praha 6",
         )
+
+
     else:
-        st.write(
+        # zadávání mapy pomocí čtverce vytyčeného souřadnicemi (bbox)
+        st.markdown(
             """
-            Zde bude popis toho, jak tohle funguje
+            Oblast mapy bude vytyčena pomocí čtverce, který je zadán čtyřmi souřadnicemi – nejsevernějším, nejjižnějším, nejvýchodnějším a nejzápadnějším bodem. Jednotlivé body zadejte níže. 
             """
         )
+
         # value=None -> dokud uživatel nic nezadá, vrací se None (ne 0.0),
         # jde tak rozeznat "nevyplněno" od skutečně zadané nuly
         north = st.number_input("Zadejte severní roh:", value=None)
@@ -82,6 +99,12 @@ with st.form("matrix_form", border=False):
         west = st.number_input("Zadejte západní roh:", value=None)
 
     # zadávání souřadnic:
+    st.markdown(
+        """
+        #### Zadání souřadnic bodů v mapě
+        """
+    )
+
     st.info(
         """
         Aby generování matice fungovalo, je potřeba zadat souřadnice ve formátu:
@@ -93,12 +116,19 @@ with st.form("matrix_form", border=False):
         _Tip: U bodů v ČR je šířka vždy ~50 a délka ~14._
         """
     )
+
+    st.text("Do textového pole níže zadejte souřadnice jednotlivých bodů")
     coordinates_input = st.text_area(
         label='Souřadnice',
         value="50.1024, 14.3935\n50.0975, 14.3985\n50.0819, 14.3644\n50.0917, 14.3557\n50.1057, 14.3766",
     )
 
     # jednotky matice
+    st.markdown(
+        """
+        #### Určení jednotky ohodnocení hran
+        """
+    )
     st.text("Zvolte jednotku ohodnocení hran:")
     units = st.segmented_control(
         'Jednotky: ',
@@ -106,6 +136,12 @@ with st.form("matrix_form", border=False):
         default="Vzdálenost",
     )
 
+    # Volba typu dopravní sítě
+    st.markdown(
+        """
+        #### Volba typu dopravní sítě
+        """
+    )
     st.text("Zvolte typ dopravní sítě:")
     network_type_label = st.selectbox(
         "Typ sítě",
