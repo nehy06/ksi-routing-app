@@ -2,6 +2,7 @@
 
 # importy
 import streamlit as st
+import numpy as np
 import pandas as pd
 from src.distance_matrix import (
     get_or_download_graph,          # stažení/cache silniční sítě podle názvu místa
@@ -48,6 +49,26 @@ place_type = st.segmented_control(
     options=['Název oblasti', 'Čtverec vytyčený souřadnicemi'],
     default="Název oblasti"
 )
+
+# Formát souřadnic je také MIMO formulář ze stejného důvodu jako place_type:
+# placeholder v poli se souřadnicemi se má přepnout hned po změně formátu.
+coordinate_format_label = st.selectbox(
+    "Formát souřadnic",
+    options=["Google (50.1024, 14.3935)", "mapy.cz (50.1024N, 14.3935E)"],
+)
+coordinate_format = "mapycz" if coordinate_format_label.startswith("mapy.cz") else "google"
+
+# ukázkové řádky zobrazené jako placeholder podle zvoleného formátu
+coordinate_placeholders = {
+    "google": "50.1024, 14.3935\n50.0975, 14.3985\n50.0819, 14.3644",
+    "mapycz": "50.1024N, 14.3935E\n50.0975N, 14.3985E\n50.0819N, 14.3644E",
+}
+
+# výchozí testovací body (Praha 6) ve stejných dvou formátech
+coordinate_defaults = {
+    "google": "50.1024, 14.3935\n50.0975, 14.3985\n50.0819, 14.3644\n50.0917, 14.3557\n50.1057, 14.3766",
+    "mapycz": "50.1024N, 14.3935E\n50.0975N, 14.3985E\n50.0819N, 14.3644E\n50.0917N, 14.3557E\n50.1057N, 14.3766E",
+}
 
 with st.form("matrix_form", border=False):
 
@@ -107,9 +128,10 @@ with st.form("matrix_form", border=False):
 
     st.info(
         """
-        Aby generování matice fungovalo, je potřeba zadat souřadnice ve formátu:
+        Souřadnice zadejte ve formátu zvoleném výše:
 
-            `zeměpisná šířka, zeměpisná délka`
+        - Google: `zeměpisná šířka, zeměpisná délka`
+        - mapy.cz: `šířkaN, délkaE`
 
         Každý bod vždy jeden bod na řádek.
 
@@ -120,7 +142,8 @@ with st.form("matrix_form", border=False):
     st.text("Do textového pole níže zadejte souřadnice jednotlivých bodů")
     coordinates_input = st.text_area(
         label='Souřadnice',
-        value="50.1024, 14.3935\n50.0975, 14.3985\n50.0819, 14.3644\n50.0917, 14.3557\n50.1057, 14.3766",
+        value=coordinate_defaults[coordinate_format],
+        placeholder=coordinate_placeholders[coordinate_format],
     )
 
     # jednotky matice
@@ -157,6 +180,21 @@ with st.form("matrix_form", border=False):
     }
     network_type = network_type_map[network_type_label]
 
+    # limit vzdálenosti, do které se bod ještě smí "přichytit" na silniční síť
+    st.markdown(
+        """
+        #### Maximální vzdálenost bodu od silniční sítě
+        """
+    )
+    max_snap_distance = st.number_input(
+        "Maximální vzdálenost bodu od nejbližšího uzlu sítě (m):",
+        min_value=0,
+        value=200,
+        step=50,
+        help="Každý bod se při výpočtu přichytí na nejbližší uzel silniční sítě. "
+        "Pokud je některý bod od sítě dál než tento limit, výpočet se zastaví.",
+    )
+
     # protože ve funkci `prepare_graph_for_weight` se určuje ohodnocení hran pomocí "mode", zde je převod
     mode = "time" if units == "Čas" else "length"
 
@@ -175,7 +213,7 @@ if submitted:
             st.error(f"Místo '{place}' se nepodařilo najít. Zkontrolujte název.")
             st.stop()  # pokud zadaná oblast neexistuje, zastaví se další generování
 
-        lats, lons = parse_cooridnates_text(coordinates_input)
+        lats, lons = parse_cooridnates_text(coordinates_input, coordinate_format)
 
         # matice dává smysl jen pro alespoň 2 body
         if len(lats) < 2:
@@ -216,7 +254,7 @@ if submitted:
             st.error("Neplatný obdélník – severní roh musí být nad jižním, východní vpravo od západního.")
             st.stop()
 
-        lats, lons = parse_cooridnates_text(coordinates_input)
+        lats, lons = parse_cooridnates_text(coordinates_input, coordinate_format)
 
         # náhled zadaných bodů na mapě, ještě před (pomalejším) stažením sítě
         st.subheader("Náhled zadaných bodů")
@@ -235,7 +273,23 @@ if submitted:
     graph, weight = prepare_graph_for_weight(road_network, mode)
 
     # najde nejbližší uzly grafu pro zadané body zájmu
-    nodes = nearest_nodes(graph, lats, lons)
+    # (zároveň vrací vzdálenost každého bodu od jeho uzlu v metrech)
+    nodes, snap_distances = nearest_nodes(graph, lats, lons, return_dist=True)
+
+    # body dál od sítě než zadaný limit - výpočet se zastaví, jinak by matice
+    # počítala s jiným místem, než uživatel zadal (např. 0 km mezi body mimo síť)
+    too_far = [
+        f"{lat:.4f}, {lon:.4f} ({dist:.0f} m)"
+        for lat, lon, dist in zip(lats, lons, snap_distances)
+        if dist > max_snap_distance
+    ]
+    if too_far:
+        st.error(
+            f"Některé body jsou od silniční sítě dál než {max_snap_distance} m "
+            "(zvolená oblast je nemusí obsahovat nebo k nim nevede cesta pro zvolený typ sítě):\n\n"
+            + "\n".join(f"- {point}" for point in too_far)
+        )
+        st.stop()
 
     # spočítá čtvercovou matici nejkratších cest (Dijkstra) mezi uzly
     matrix = build_distance_matrix(graph, nodes, weight)
@@ -244,8 +298,40 @@ if submitted:
     labels = [f"{lat:.4f}, {lon:.4f}" for lat, lon in zip(lats, lons)]
     matrix_df = pd.DataFrame(matrix, index=labels, columns=labels)
 
+    # kontrola výsledku: dvojice mimo diagonálu s hodnotou 0 (oba body na stejném uzlu)
+    # nebo inf (mezi uzly neexistuje cesta)
+    off_diagonal = ~np.eye(len(labels), dtype=bool)
+    zero_pairs = [
+        f"{labels[i]} → {labels[j]}"
+        for i, j in zip(*np.where(off_diagonal & (matrix == 0)))
+        if i < j  # nulová vzdálenost je symetrická, stačí vypsat každou dvojici jednou
+    ]
+    inf_pairs = [
+        f"{labels[i]} → {labels[j]}"
+        for i, j in zip(*np.where(off_diagonal & np.isinf(matrix)))
+    ]
+
+    if zero_pairs:
+        st.warning(
+            "Některé různé body se přichytily na stejný uzel sítě, proto je mezi nimi vzdálenost 0 "
+            "(body jsou k sobě příliš blízko vzhledem k hustotě sítě):\n\n"
+            + "\n".join(f"- {pair}" for pair in zero_pairs)
+        )
+    if inf_pairs:
+        st.warning(
+            "Mezi některými body neexistuje cesta pro zvolený typ sítě (hodnota inf):\n\n"
+            + "\n".join(f"- {pair}" for pair in inf_pairs)
+        )
+
     st.subheader("Matice vzdáleností")
     st.dataframe(matrix_df)
+
+    # vzdálenost každého zadaného bodu od uzlu sítě, na který byl přichycen
+    st.subheader("Vzdálenost bodů od silniční sítě")
+    snap_df = pd.DataFrame(
+        {"Bod": labels, "ID uzlu": nodes, "Vzdálenost od uzlu (m)": [round(d) for d in snap_distances]}
+    )
+    st.dataframe(snap_df, hide_index=True)
 
     st.download_button(
         label="Stáhnout matici jako CSV",
