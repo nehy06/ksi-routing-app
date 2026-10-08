@@ -1,6 +1,7 @@
 """Výpočet matice vzdáleností mezi body na základě OpenStreetMap (osmnx/networkx)."""
 
 import os
+import re
 
 import networkx as nx
 import numpy as np
@@ -133,7 +134,9 @@ def prepare_graph_for_weight(graph, mode: str):
     return graph, weight
 
 # ----- Definice funkce pro tvorbu uzlů a hran ze zadaných souřadnic-----
-def nearest_nodes(graph: nx.MultiDiGraph, lats: list[float], lons: list[float]) -> list[int]:
+def nearest_nodes(
+    graph: nx.MultiDiGraph, lats: list[float], lons: list[float], return_dist: bool = False
+) -> list[int] | tuple[list[int], list[float]]:
     """Najde nejbližší uzly grafu pro zadané body.
 
         Pro každou dvojici souřadnic (lat, lon) najde ID nejbližšího uzlu
@@ -147,16 +150,23 @@ def nearest_nodes(graph: nx.MultiDiGraph, lats: list[float], lons: list[float]) 
             lats: Zeměpisné šířky bodů zájmu.
             lons: Zeměpisné délky bodů zájmu. Musí mít stejnou délku jako lats
                 a stejné pořadí (lats[i], lons[i] tvoří jeden bod).
+            return_dist: Pokud True, vrátí navíc vzdálenosti bodů od jejich
+                nejbližších uzlů v metrech. Výchozí hodnota je False.
 
         Returns:
             Seznam ID uzlů grafu, ve stejném pořadí jako vstupní body.
             node_ids[i] je nejbližší uzel k bodu (lats[i], lons[i]).
+            Při return_dist=True dvojice (node_ids, dists), kde dists[i] je
+            vzdálenost bodu i od uzlu node_ids[i] v metrech.
 
         Raises:
             ValueError: pokud lats a lons nemají stejnou délku.
         """
     # vrátí seznam ID nejbližších uzlů, ve stejném pořadí jako vstupní body
-    return list(ox.distance.nearest_nodes(graph, X=lons, Y=lats)) 
+    if return_dist:
+        nodes, dists = ox.distance.nearest_nodes(graph, X=lons, Y=lats, return_dist=True)
+        return list(nodes), list(dists)
+    return list(ox.distance.nearest_nodes(graph, X=lons, Y=lats))
 
 def build_distance_matrix(graph: nx.MultiDiGraph, node_ids: list[int], weight: str = "length") -> np.ndarray:
     """Vytvoří čtvercovou matici vzdáleností mezi body pomocí nejkratších cest v grafu.
@@ -198,33 +208,53 @@ def build_distance_matrix(graph: nx.MultiDiGraph, node_ids: list[int], weight: s
 
 
 # ----- Práce se vstupem uživatele - zadávání souřadnic jako textu -----
-def parse_cooridnates_text(coordinates: str) -> tuple[list[float], list[float]]:
+# vzor řádku z mapy.cz, např. "49.5459894N, 18.4472200E"
+_MAPYCZ_PATTERN = re.compile(
+    r"^\s*(\d+(?:\.\d+)?)\s*([NS])\s*,\s*(\d+(?:\.\d+)?)\s*([EW])\s*$",
+    re.IGNORECASE,
+)
+
+
+def parse_cooridnates_text(
+    coordinates: str, coordinate_format: str = "google"
+) -> tuple[list[float], list[float]]:
     """Rozdělí textový vstup se souřeadnicemi na 2 listy - latitudes, longitutes
 
     Args:
-        coordinates (str): Vstupní text, řádky oddělené znakem \\n,
-            každý řádek ve formátu "lat, lon".
+        coordinates (str): Vstupní text, řádky oddělené znakem \\n.
+        coordinate_format (str): Formát řádků. "google" = "lat, lon",
+            "mapycz" = "49.5459894N, 18.4472200E" (S a W dávají zápornou hodnotu).
+            Výchozí hodnota je "google".
 
     Returns:
          tuple[list[float], list[float]]: Dvojice listů (lats, lons).
 
     Raises:
-        ValueError: Pokud některý řádek nejde rozdělit na dvě čísla.
+        ValueError: Pokud některý řádek neodpovídá zvolenému formátu.
     """
     coordinates_split = coordinates.split('\n')
-    
+
     lats = []
     lons = []
 
     for coordinate in coordinates_split:
         try:
-            lat, lon = coordinate.split(',')
+            if coordinate_format == "mapycz":
+                match = _MAPYCZ_PATTERN.match(coordinate)
+                if match is None:
+                    raise ValueError
+                lat_value, lat_dir, lon_value, lon_dir = match.groups()
+                lat = float(lat_value) * (-1 if lat_dir.upper() == "S" else 1)
+                lon = float(lon_value) * (-1 if lon_dir.upper() == "W" else 1)
+            else:
+                lat_text, lon_text = coordinate.split(',')
+                lat, lon = float(lat_text), float(lon_text)
 
-            lats.append(float(lat))
-            lons.append(float(lon))
+            lats.append(lat)
+            lons.append(lon)
         except ValueError:
             raise ValueError(f"Neplatný řádek se souřadnicemi: '{coordinate}'")
-            
+
     return lats, lons
 
 
